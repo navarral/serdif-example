@@ -1,0 +1,13 @@
+# -- events ------------------------------------------------------------
+Run the following command to create the random events data within Ireland
+$ venv/bin/python3.6 EndEventsIreland.py
+Enter the number of events and individuals they relate to with your keyboard when asked
+
+# -- airQuality --------------------------------------------------------
+Generate a list of urls from the EEA API (https://discomap.eea.europa.eu/map/fme/AirQualityExport.htm)
+Download the data files using wget
+$ wget -i url-list.txt
+
+# -- weather -----------------------------------------------------------
+Run the following command to download the weather data from MetEiréann historical records
+$ venv/bin/python3.6 MetDataDownload.py

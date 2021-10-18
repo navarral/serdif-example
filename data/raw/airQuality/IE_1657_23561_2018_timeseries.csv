@@ -1,0 +1,2 @@
+Countrycode,Namespace,AirQualityNetwork,AirQualityStation,AirQualityStationEoICode,SamplingPoint,SamplingProcess,Sample,AirPollutant,AirPollutantCode,AveragingTime,Concentration,UnitOfMeasurement,DatetimeBegin,DatetimeEnd,Validity,Verification
+IE,http://erc.epa.ie/airquality/ipr,NET.IE001,STA.IE.IE0145A,IE0145A,SPO.IE.IE0145ASample1_1657,SPP.IE.IE0145ASample1_1657,SAM.IE.IE0145ASAMPLE1,K+ in PM2.5,http://dd.eionet.europa.eu/vocabulary/aq/pollutant/1657,var,0.0300000000,µg/m3,2018-01-01 01:00:00 +01:00,2019-01-01 00:59:59 +01:00,1,1

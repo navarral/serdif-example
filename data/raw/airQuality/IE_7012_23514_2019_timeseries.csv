@@ -1,0 +1,2 @@
+Countrycode,Namespace,AirQualityNetwork,AirQualityStation,AirQualityStationEoICode,SamplingPoint,SamplingProcess,Sample,AirPollutant,AirPollutantCode,AveragingTime,Concentration,UnitOfMeasurement,DatetimeBegin,DatetimeEnd,Validity,Verification
+IE,http://erc.epa.ie/airquality/ipr,NET.IE001,STA.IE.IE0108A,IE0108A,SPO.IE.IE0108ASample2_7012,SPP.IE.IE0108ASample2_7012,SAM.IE.IE0108ASAMPLE2,Pb,http://dd.eionet.europa.eu/vocabulary/aq/pollutant/7012,var,2.7200000000,ug/m2/day,2019-01-01 01:00:00 +01:00,2020-01-01 00:59:59 +01:00,1,1
