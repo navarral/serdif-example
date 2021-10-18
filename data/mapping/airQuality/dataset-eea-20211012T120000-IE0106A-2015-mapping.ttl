@@ -1,0 +1,123 @@
+@prefix rr: <http://www.w3.org/ns/r2rml#> .
+@prefix rrf: <http://kdeg.scss.tcd.ie/ns/rrf#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix dc: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix geo: <http://www.opengis.net/ont/geosparql#>.
+@prefix serdif: <https://serdif.adaptcentre.ie/kg/data/eeaData_20210623_RDF/> .
+@prefix eionet:<http://dd.eionet.europa.eu/vocabulary/aq/pollutant/> .
+
+@prefix sdmx:  <http://purl.org/linked-data/sdmx#> .
+@prefix sdmx-concept:    <http://purl.org/linked-data/sdmx/2009/concept#> .
+@prefix sdmx-dimension:  <http://purl.org/linked-data/sdmx/2009/dimension#> .
+@prefix sdmx-attribute:  <http://purl.org/linked-data/sdmx/2009/attribute#> .
+@prefix sdmx-measure:    <http://purl.org/linked-data/sdmx/2009/measure#> .
+@prefix qb:  <http://purl.org/linked-data/cube#> .
+@prefix eg:  <http://example.org/ns#> .
+
+
+<#MapObsData>
+ 
+	rr:logicalTable [ 
+		 rr:sqlQuery """SELECT SAMPLINGPOINT, DATETIMEBEGIN, AIRPOLLUTANT, AIRPOLLUTANTCODE, CONCENTRATION, COUNTRYCODE FROM IE_6001_23557_2015_timeseries""";
+	] ;
+		
+	rr:subjectMap [
+		rrf:functionCall [
+				rrf:function <#obsDateTimeUrl> ;
+				rrf:parameterBindings (
+					[ rr:column "DATETIMEBEGIN" ]
+				) ;
+		] ;
+		rr:termType rr:IRI;
+		rr:class qb:Observation;
+	];		
+	
+	rr:predicateObjectMap [
+		rr:predicate qb:dataSet;
+		rr:objectMap	[
+			rr:template "http://example.org/ns#dataset-eea-20211012T120000-IE0106A";
+			rr:termType rr:IRI;
+		];
+	];
+   	
+	rr:predicateObjectMap [
+		rr:predicate sdmx-dimension:timePeriod ;
+		rr:objectMap  [ 
+			rrf:functionCall [
+	 			rrf:function <#obsDateTimeVal> ;
+	 			rrf:parameterBindings (
+	 				[ rr:column "DATETIMEBEGIN" ]
+	 			) ;
+	 		] ;
+			rr:termType rr:Literal;
+			rr:datatype xsd:dateTime;
+		];		
+   ];
+	
+	rr:predicateObjectMap [
+		rr:predicateMap [ 
+			rrf:functionCall [
+	 			rrf:function <#pollutantNameClean> ;
+	 			rrf:parameterBindings (
+	 				[ rr:column "AIRPOLLUTANT" ]
+	 			) ;
+	 		] ;
+			rr:termType rr:IRI;
+		];
+		rr:objectMap  [ 
+			rr:column "CONCENTRATION";
+			rr:termType rr:Literal;
+			rr:datatype xsd:float;
+		];		
+	];   	
+.
+
+
+<#obsDateTimeUrl>
+	rrf:functionName "obsdatetimeurl" ;
+	rrf:functionBody """
+		function obsdatetimeurl(str_date) {
+			// date_time - "2010-01-01 09:00:00 +01:00"
+			// Fix format date time to conform with standards
+			// "2010-01-01 09:00:00 +01:00" -> "20100101T080000Z"
+			var str_date_spl = str_date.split(" ");
+			var str_date_fix = str_date_spl[0] + "T" + str_date_spl[1] + str_date_spl[2];
+			// get date from dateTime object
+			var str_date_new = new Date(Date.parse(str_date_fix)).toISOString().split('.')[0];
+			var str_data_url = str_date_new.replace(/-/g, '').replace(/:/g, '');
+			return "http://example.org/ns#dataset-eea-20211012T120000-IE0106A-obs-" + str_data_url + "Z" ;
+		}
+	""" ;
+.
+
+<#obsDateTimeVal>
+	rrf:functionName "obsdatetimeval" ;
+	rrf:functionBody """
+		function obsdatetimeval(str_date) {
+			// date_time - "2010-01-01 09:00:00 +01:00"
+			// Fix format date time to conform with standards
+			// "2010-01-01 09:00:00 +01:00" -> "2010-01-01T08:00:00Z"
+			var str_date_spl = str_date.split(" ");
+			var str_date_fix = str_date_spl[0] + "T" + str_date_spl[1] + str_date_spl[2];
+			// get date from dateTime object
+			var str_date_new = new Date(Date.parse(str_date_fix)).toISOString().split('.')[0];
+			return str_date_new + "Z" ;
+		}
+	""" ;
+.
+
+<#pollutantNameClean>
+	rrf:functionName "pollutantnameclean" ;
+	rrf:functionBody """
+		function pollutantnameclean(pName) {
+		// Fix format pollutant name to comply with URI standard symbols
+		// by replacing parentheses, dashes, plus signs and commasdate time to conform with standards
+		// "Indeno-(1,2,3-cd)pyrene in PM10" -> "Indeno123cdpyreneinPM10"
+		var pNameC = pName.replace(/[{()}]/g, '').replace(/\\-/g, '').replace(/\\+/g, '').replace(/,/g, '').replace(/\\s/g, '') ;
+		return "http://example.org/ns#has" + pNameC ;
+	}
+	""" ;
+.
