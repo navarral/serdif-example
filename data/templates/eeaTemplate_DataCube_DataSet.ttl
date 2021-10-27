@@ -178,7 +178,7 @@ eg:has{{data.eeaVar}}
 	rdfs:comment   		"{{data.eeaVar_nameAndUnit}}" ;
 	rdfs:subPropertyOf  sdmx-measure:obsValue ;
 	rdfs:range     		xsd:float ;
-	unit:abbreviation 	{{data.eeaVar_Unit}} ;
+	unit:abbreviation 	<{{data.eeaVar_Unit}}> ;
 	rdfs:seeAlso		<{{data.eeaVar_eeaInfo}}> ;
 .
 

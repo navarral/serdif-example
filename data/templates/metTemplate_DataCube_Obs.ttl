@@ -61,7 +61,7 @@
 	
 {% for metVarP, metVar in data.metVarsC %}
    rr:predicateObjectMap [
-		rr:predicate serdif:has{{metVarP}} ;
+		rr:predicate eg:has{{metVarP}} ;
 		rr:objectMap  [ 
 			rr:column "{{metVar}}" ;
 			rr:termType rr:Literal ;

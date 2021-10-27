@@ -183,7 +183,7 @@ eg:has{{metVar}}
 	rdfs:comment   		"{{metVar_nameAndUnit}}" ;
 	rdfs:subPropertyOf  sdmx-measure:obsValue ;
 	rdfs:range     		xsd:float ;
-	unit:abbreviation 	<{{metVar_Unit}}> ;
+	unit:abbreviation 	{{metVar_Unit}} ;
 	rdfs:seeAlso	
 		<{{metVar_metInfo}}> ,
 		<{{metVar_EnvoVocLink}}> ;
