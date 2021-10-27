@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/serdifExample.iml" filepath="$PROJECT_DIR$/.idea/serdifExample.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/serdif-example.iml" filepath="$PROJECT_DIR$/.idea/serdif-example.iml" />
     </modules>
   </component>
 </project>

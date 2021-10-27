@@ -61,7 +61,7 @@
 	
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasRain ;
+		rr:predicate eg:hasRain ;
 		rr:objectMap  [ 
 			rr:column "RAIN" ;
 			rr:termType rr:Literal ;
@@ -70,7 +70,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasTemp ;
+		rr:predicate eg:hasTemp ;
 		rr:objectMap  [ 
 			rr:column "TEMP" ;
 			rr:termType rr:Literal ;
@@ -79,7 +79,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasWetb ;
+		rr:predicate eg:hasWetb ;
 		rr:objectMap  [ 
 			rr:column "WETB" ;
 			rr:termType rr:Literal ;
@@ -88,7 +88,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasDewpt ;
+		rr:predicate eg:hasDewpt ;
 		rr:objectMap  [ 
 			rr:column "DEWPT" ;
 			rr:termType rr:Literal ;
@@ -97,7 +97,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasVappr ;
+		rr:predicate eg:hasVappr ;
 		rr:objectMap  [ 
 			rr:column "VAPPR" ;
 			rr:termType rr:Literal ;
@@ -106,7 +106,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasRhum ;
+		rr:predicate eg:hasRhum ;
 		rr:objectMap  [ 
 			rr:column "RHUM" ;
 			rr:termType rr:Literal ;
@@ -115,7 +115,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasMsl ;
+		rr:predicate eg:hasMsl ;
 		rr:objectMap  [ 
 			rr:column "MSL" ;
 			rr:termType rr:Literal ;
@@ -124,7 +124,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasWdsp ;
+		rr:predicate eg:hasWdsp ;
 		rr:objectMap  [ 
 			rr:column "WDSP" ;
 			rr:termType rr:Literal ;
@@ -133,7 +133,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasWddir ;
+		rr:predicate eg:hasWddir ;
 		rr:objectMap  [ 
 			rr:column "WDDIR" ;
 			rr:termType rr:Literal ;
@@ -142,7 +142,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasSun ;
+		rr:predicate eg:hasSun ;
 		rr:objectMap  [ 
 			rr:column "SUN" ;
 			rr:termType rr:Literal ;
@@ -151,7 +151,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasVis ;
+		rr:predicate eg:hasVis ;
 		rr:objectMap  [ 
 			rr:column "VIS" ;
 			rr:termType rr:Literal ;
@@ -160,7 +160,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasClht ;
+		rr:predicate eg:hasClht ;
 		rr:objectMap  [ 
 			rr:column "CLHT" ;
 			rr:termType rr:Literal ;
@@ -169,7 +169,7 @@
 	];
 
    rr:predicateObjectMap [
-		rr:predicate serdif:hasClamt ;
+		rr:predicate eg:hasClamt ;
 		rr:objectMap  [ 
 			rr:column "CLAMT" ;
 			rr:termType rr:Literal ;
