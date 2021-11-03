@@ -1,23 +1,11 @@
 # -*- coding: utf-8 -*-
+import requests
+import urllib.parse
 from jinja2 import Environment, FileSystemLoader
-import os
-import glob
-from tqdm import tqdm
-from subprocess import call
-import pandas as pd
-import time
-from pytz import timezone
+from collections import defaultdict
+import json
+import io
 
-# Check for all .csv files in directory
-path2Files = 'raw/airQuality'
-rawFilesList = glob.glob(path2Files + '/*.csv')
-# Name for the metadata file
-eeaMetadataFileName = 'PanEuropean_metadata'
-eeaMetadataDF = pd.read_csv(path2Files + '/stationsMetadata/' + eeaMetadataFileName + '.csv')
-# Load environment for jinja2 templates
-file_loader = FileSystemLoader('templates')
-env = Environment(loader=file_loader)
-# Dictionary with EEA Air Quality variables full names, units and extra info
 eeaAirQualityVars_Dict = {
     'http://dd.eionet.europa.eu/vocabulary/aq/pollutant/7': {
         'eeaVar': 'O3',
@@ -74,7 +62,7 @@ eeaAirQualityVars_Dict = {
         'eeaInfo': 'http://dd.eionet.europa.eu/vocabulary/aq/pollutant/8',
     },
     'http://dd.eionet.europa.eu/vocabulary/aq/pollutant/9': {
-        'eeaVar': 'NOX',
+        'eeaVar': 'NOXasNO2',
         'fullName': 'Nitrogen oxides (air) - ug/m3',
         'unit': 'http://dd.eionet.europa.eu/vocabulary/uom/concentration/ug.m-3',
         'eeaInfo': 'http://dd.eionet.europa.eu/vocabulary/aq/pollutant/9',
@@ -370,106 +358,227 @@ eeaAirQualityVars_Dict = {
     },
 }
 
-datasetVersion = '20211012T120000'
-
-# Generate a mapping and properties files for each
-for f in tqdm(rawFilesList):
-    # Use splitext() to get filename and extension separately.
-    rawFileName = os.path.splitext(os.path.basename(f))[0]
-    # Select Sampling Point from data file
-    samplingP = pd.read_csv(f).SamplingPoint.unique()[0]
-    stCode = samplingP.split('Sample')[0].split('IE.')[1]
-    # Select Sampling Point from data file
-    avgTime = pd.read_csv(f).AveragingTime.unique()[0]
-    translatorAvgTime = {
-        'hour': 'PT1H',
-        'day': 'P1D',
-        'var': 'P1M',
-        'year': 'P1Y',
+metWeatherVars_Dict = {
+    'rain': {
+        'fullName': 'Precipitation Amount - mm',
+        'unit': 'unit:MilliM',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/rainfall',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/A05/current/EV_RAIN/',
+    },
+    'temp': {
+        'fullName': 'Air Temperature - ºC',
+        'unit': 'unit:DEG_C ',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/temperature',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/A05/current/EV_AIRTEMP/'
+    },
+    'wetb': {
+        'fullName': 'Wet Bulb Air Temperature - ºC',
+        'unit': 'unit:DEG_C',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/temperature',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P01/current/CWETZZ01/'
+    },
+    'dewpt': {
+        'fullName': 'Dew Point Air Temperature - ºC',
+        'unit': 'unit:DEG_C',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/temperature',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P01/current/CDEWZZ01/'
+    },
+    'vappr': {
+        'fullName': 'Vapour Pressure - hPa',
+        'unit': 'unit:HectoPA',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/water-vapour',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P07/current/CFSN0032/'
+    },
+    'rhum': {
+        'fullName': 'Relative Humidity - %',
+        'unit': 'unit:PERCENT',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P01/current/CRELZZ01/',
+    },
+    'msl': {
+        'fullName': 'Mean Sea Level Pressure - hPa',
+        'unit': 'unit:HectoPA',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P01/current/CDEWZZ01/'
+    },
+    'wdsp': {
+        'fullName': 'Mean Hourly Wind Speed - kt',
+        'unit': 'unit:KN',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/wind',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/A05/current/EV_WSPD/',
+    },
+    'wddir': {
+        'fullName': 'Predominant Hourly wind Direction - º',
+        'unit': 'unit:DEG',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/wind',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/A05/current/EV_WDIR/',
+    },
+    'sun': {
+        'fullName': 'Sunshine duration - hours',
+        'unit': 'unit:HR',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure/sunshine',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P07/current/CFSN0643/',
+    },
+    'vis': {
+        'fullName': 'Visibility - m',
+        'unit': 'unit:M',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P07/current/CFSN0061/'
+    },
+    'clht': {
+        'fullName': 'Cloud Ceiling Height - 100s feet',
+        'unit': '<http://vocab.nerc.ac.uk/collection/P06/current/UUUU/>',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P07/current/CFSN0747/'
+    },
+    'clamt': {
+        'fullName': 'Cloud Amount - okta',
+        'unit': '<http://vocab.nerc.ac.uk/collection/P06/current/UUUU/>',
+        'metInfo': 'https://www.met.ie/climate/what-we-measure',
+        'envoVocLink': 'http://vocab.nerc.ac.uk/collection/P07/current/CFSN0745/'
     }
-    # Select dates time interval
-    dateTimeList = pd.to_datetime(
-        pd.read_csv(f).DatetimeBegin,
-        format='%Y-%m-%d %H:%M:%S %z',
-        yearfirst=True)
-    startDateTime = str(min(dateTimeList).astimezone(timezone('UTC')).isoformat()).replace('+00:00', 'Z')
-    endDateTime = str(max(dateTimeList).astimezone(timezone('UTC')).isoformat()).replace('+00:00', 'Z')
-    airPollutant = pd.read_csv(f).AirPollutantCode.unique()[0]
-    # Select rows with the previous Sampling Point
-    eeaFilter = eeaMetadataDF[(eeaMetadataDF == samplingP).any(axis=1)]
-    # Get download link from file name:
-    # 1) EEA Airbase files are <2012
-    # 2) Recent files are >2013
-    if 'airbase' in rawFileName:
-        fileDownloadUrl = 'https://ereporting.blob.core.windows.net/downloadservice-airbase/' + rawFileName + '.csv'
-        yearDataset = rawFileName.split('_airbase')[0].split('_')[3]
-    else:
-        fileDownloadUrl = 'https://ereporting.blob.core.windows.net/downloadservice/' + rawFileName + '.csv'
-        yearDataset = rawFileName.split('_timeseries')[0].split('_')[3]
 
+}
+
+
+def genMetadataFile(queryTimeUrl, timeUnit, spAgg, wLag, wLen, evEnvoDict,
+                    fileSize, qText, eeVars, username, password):
+    # Load environment for jinja2 templates
+    file_loader = FileSystemLoader('templates')
+    env = Environment(loader=file_loader)
     # 1. Generate mapping file from template
     # Load eea template file
-    tempMap = env.get_template('eeaTemplate_DataCube_Obs.ttl')
+    metaMap = env.get_template('Envo-Event_data_example_template.ttl')
     # Set data dictionary for input
-    tempMap_dict = {'eeaDataFile': rawFileName,
-                    'fileDownloadUrl': fileDownloadUrl,
-                    'version': datasetVersion,
-                    'stCode': stCode,
-                    }
-    outMap = tempMap.stream(data=tempMap_dict)
-    # Export resulting mapping
-    outMap.dump('mapping/airQuality/dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-mapping.ttl')
-    # 2. Generate map properties file from template
-    # Load eea template file
-    tempProp = env.get_template('eeaTemplate_DataCube_Obs.properties')
-    # Set data dictionary for input
-    tempProp_dict = {
-        'mappingFile': 'mapping/airQuality/dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-mapping.ttl',
-        'eeaDataFile': 'raw/airQuality/' + rawFileName + '.csv',
-        'rdfDataFile': 'rdf/airQuality/dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-data.ttl',
-    }
-    print(rawFileName)
-    outProp = tempProp.stream(data=tempProp_dict)
-    # Export resulting mapping properties file
-    outPropName = 'mapping/airQuality/' + 'dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-mapping.properties'
-    outProp.dump(outPropName)
-    # 3. Execute mapping to convert csv file to RDF
-    call(['java', '-Xmx4112m', '-jar', 'r2rml-v1.2.3b/r2rml.jar', outPropName])
+    datasetVersion = '20211012T120000'
+    # Edit evEnvoDict input
+    dd = defaultdict(list)
 
-    # Fill air quality dataset RDF template with the values from the metadata file
-    # Load template
-    datasetTemp = env.get_template('eeaTemplate_DataCube_DataSet.ttl')
-    # Set data dictionary for input
-    datasetTemp_dict = {
+    for k in evEnvoDict.keys():
+        tt = evEnvoDict[k]
+        for key, val in tt.items():
+            dd[key].append(val)
+
+    evEnvoDict_e = dict(dd)
+
+    def flatten(d):
+        return [i for b in [[i] if not isinstance(i, list) else flatten(i) for i in d] for i in b]
+
+    # Dictionaries to translate timeUnit to query SPARQL query parameters
+    selTimeUnit = {'hour': 'HOURS',
+                   'day': 'DAYS',
+                   'month': 'MONTHS',
+                   'year': 'YEARS',
+                   }
+    selTimeRes = {'hour': 'PT1H',
+                  'day': 'P1D',
+                  'month': 'P1M',
+                  'year': '?P1Y',
+                  }
+    # Extract environmental variables information from dictionaries above
+    eeVarUp = []
+    eeVarLow = []
+    eeVarNameUnitUp = []
+    eeVarNameUnit = []
+    eeVarUnit = []
+    eeVarInfo = []
+    eeVarEnvoLink = []
+    for eVar in eeVars:
+        if eVar.lower() in metWeatherVars_Dict:
+            # Capitalize only first letter for properties
+            eeVarUp.append(eVar.upper())
+            # Lower case variables for label
+            eeVarLow.append(eVar.lower())
+            # Full name and unit for the variables Upper case for comment at the start
+            eeVarNameUnitUp.append(metWeatherVars_Dict[eVar.lower()]['fullName'].upper())
+            # Full name and unit for the variables
+            eeVarNameUnit.append(metWeatherVars_Dict[eVar.lower()]['fullName'])
+            # Variable unit
+            eeVarUnit.append(metWeatherVars_Dict[eVar.lower()]['unit'])
+            # Met Eireann or EEA information about the variable
+            eeVarInfo.append(metWeatherVars_Dict[eVar.lower()]['metInfo'])
+            # The NERC Vocabulary Server (NVS) information about the variable
+            eeVarEnvoLink.append(metWeatherVars_Dict[eVar.lower()]['envoVocLink'])
+        else:
+            for k in eeaAirQualityVars_Dict.keys():
+                if eVar == eeaAirQualityVars_Dict[k]['eeaVar']:
+                    # Capitalize only first letter for properties
+                    eeVarUp.append(eVar)
+                    # Lower case variables for label
+                    eeVarLow.append(eVar.lower())
+                    # Full name and unit for the variables Upper case for comment at the start
+                    eeVarNameUnitUp.append(eeaAirQualityVars_Dict[k]['fullName'].upper())
+                    # Full name and unit for the variables
+                    eeVarNameUnit.append(eeaAirQualityVars_Dict[k]['fullName'])
+                    # Variable unit
+                    eeVarUnit.append('<' + eeaAirQualityVars_Dict[k]['unit'] + '>')
+                    # Met Eireann or EEA information about the variable
+                    eeVarInfo.append(str(eeaAirQualityVars_Dict[k]['eeaInfo']))
+                    # The NERC Vocabulary Server (NVS) information about the variable
+                    eeVarEnvoLink.append('')
+
+    # Query geometry metadata information
+    # 1.3.Fire query and convert results to json (dictionary)
+    qGeoMetadata = requests.post(
+        'https://serdif-example.adaptcentre.ie/repositories/repo-serdif-events-ie',
+        data={'query': '''
+                PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+                PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                SELECT *
+                WHERE { 
+                    VALUES ?LOI {''' + ''.join([' "' + envoLocVal + '"@en ' for envoLocVal in set(evEnvoDict_e['LOI_ev'])]) + '''}
+                    ?county
+                        a geo:Feature, <http://ontologies.geohive.ie/osi#County> ;
+                        rdfs:label ?LOI ;
+                        geo:hasGeometry/geo:asWKT ?countyGeo .
+                } 
+                '''
+              },
+        auth=(username, password),
+        headers={'Accept': 'application/sparql-results+json'}
+    ).text
+    # 1.4.Return results
+    jGeoMetadata = json.loads(qGeoMetadata)['results']['bindings']
+    rGeoMetadata_geo = ['<' + geoIRI['county']['value'] + '>' for geoIRI in jGeoMetadata]
+    rGeoMetadata_geoLit = ['"""' + geoLit['countyGeo']['value'] + '"""^^geo:wktLiteral' for geoLit in jGeoMetadata]
+
+    # External data sets used to construct the query
+    extDataUsed = ['<' + envDS + '>' for envDS in set(flatten(evEnvoDict_e['envoDS']))]
+
+    metaMap_dict = {
         'version': datasetVersion,
-        'stCode': stCode,
-        'versionDateTime': '2021-10-12T12:00:00Z',
-        'downloadFileUrl': fileDownloadUrl,
-        'yearDataset': yearDataset,
-        'bitSize': os.path.getsize('rdf/airQuality/dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-data.ttl'),
-        'timeUnit': translatorAvgTime[avgTime],
-        'startDate': startDateTime,
-        'endDate': endDateTime,
-        'lat': str(eeaFilter.Latitude.values[0]),
-        'lon': str(eeaFilter.Longitude.values[0]),
-        'altitude': str(eeaFilter.Altitude.values[0]),
-        'eeaVar': eeaAirQualityVars_Dict[airPollutant]['eeaVar'],
-        'eeaVar_nameAndUnitUpper': eeaAirQualityVars_Dict[airPollutant]['fullName'].upper(),
-        'eeaVar_nameAndUnit': eeaAirQualityVars_Dict[airPollutant]['fullName'],
-        'eeaVar_Unit': eeaAirQualityVars_Dict[airPollutant]['unit'],
-        'eeaVar_eeaInfo': eeaAirQualityVars_Dict[airPollutant]['eeaInfo'],
+        'queryTime': queryTimeUrl,
+        'queryDateTime': queryTimeUrl.replace('%3A', ':'),
+        'countyName': ' '.join(set(evEnvoDict_e['LOI_ev'])),
+        'timeUnit': selTimeUnit[timeUnit],
+        'aggMethod': spAgg,
+        'wLag': wLag,
+        'wLen': wLen,
+        'extDataSetsUsed': ', '.join(extDataUsed) ,
+        'countyGeom': ', '.join(rGeoMetadata_geo),
+        'countyGeomGeo': ', '.join(rGeoMetadata_geo),
+        'timeRes': selTimeRes[timeUnit],
+        'fileSize': fileSize,
+        'startDateTime': min(evEnvoDict_e['dateStart']),
+        'endDateTime': max(evEnvoDict_e['dateLag']),
+        'countyGeomLiteral': ', '.join(rGeoMetadata_geoLit),
+        'queryText': qText,
+        'eeVars': eeVarUp,
+        'eeVarsD': zip(*[eeVarNameUnitUp, eeVarUp, eeVarLow,
+                         eeVarNameUnit, eeVarUnit, eeVarInfo, eeVarEnvoLink]),
     }
-
-    outDatasetTemp = datasetTemp.stream(data=datasetTemp_dict)
+    outMap = metaMap.stream(data=metaMap_dict)
     # Export resulting mapping
-    outDatasetTemp.dump('rdf/airQuality/' + 'dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-metadata.ttl')
+    #outMap.dump('metadataExports/metadata-ee-' + datasetVersion + '-' + queryTimeUrl + '.ttl')
+    fileobj = io.StringIO()
+    outMap.dump(fileobj)
+    outMapRend = fileobj.getvalue()
+    return outMapRend
 
-    rdfDataFile = 'rdf/airQuality/dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-data.ttl'
-    rdfMetadataFile = 'rdf/airQuality/' + 'dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-metadata.ttl'
-    zipName = 'rdf/airQuality/dataset-eea-' + datasetVersion + '-' + stCode + '-' + yearDataset + '-data.zip'
-    # Zip RDF data and metadata files
-    call(['zip', zipName, rdfDataFile, rdfMetadataFile, '-j'])
-    # Remove originals to save space
-    os.remove(rdfDataFile)
-    os.remove(rdfMetadataFile)
-    time.sleep(3)
+
+
+if __name__ == '__main__':
+    genMetadataFile()
+
+
+
