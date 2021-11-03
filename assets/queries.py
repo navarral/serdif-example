@@ -163,7 +163,8 @@ def evEnvoDataAsk(referer, repo, evEnvoDict, username, password):
                     a qb:Observation ;
                     qb:dataSet ?envoDataSet ;
                     sdmx-dimension:timePeriod ?obsTime .        
-                FILTER(?obsTime > "''' + evEnvoDict[ev]['dateStart'] + '''"^^xsd:dateTime && ?obsTime <= "''' + evEnvoDict[ev]['dateLag'] + '''"^^xsd:dateTime)
+                FILTER(?obsTime > "''' + evEnvoDict[ev]['dateStart'] + '''"^^xsd:dateTime && ?obsTime <= "''' + \
+                     evEnvoDict[ev]['dateLag'] + '''"^^xsd:dateTime)
             }
         }
         '''
@@ -219,12 +220,14 @@ def evEnvoDataSet(referer, repo, evEnvoDict, timeUnit, spAgg, username, password
                 {
                     SELECT ?obsData ?obsTime
                     WHERE{
-                        VALUES ?envoDataSet {''' + ''.join([' <' + envoDS + '> ' for envoDS in evEnvoDict[ev]['envoDS']]) + '''}  
+                        VALUES ?envoDataSet {''' + ''.join(
+            [' <' + envoDS + '> ' for envoDS in evEnvoDict[ev]['envoDS']]) + '''}  
                         ?obsData
                             a qb:Observation ;
                             qb:dataSet ?envoDataSet ;
                             sdmx-dimension:timePeriod ?obsTime .        
-                        FILTER(?obsTime > "''' + evEnvoDict[ev]['dateStart'] + '''"^^xsd:dateTime && ?obsTime <= "''' + evEnvoDict[ev]['dateLag'] + '''"^^xsd:dateTime)
+                        FILTER(?obsTime > "''' + evEnvoDict[ev]['dateStart'] + '''"^^xsd:dateTime && ?obsTime <= "''' + \
+                     evEnvoDict[ev]['dateLag'] + '''"^^xsd:dateTime)
                     }
                 }
                 ?obsData ?envProp ?envVar .
@@ -249,12 +252,19 @@ def evEnvoDataSet(referer, repo, evEnvoDict, timeUnit, spAgg, username, password
     PREFIX geohive-county-geo: <http://data.geohive.ie/pathpage/geo:hasGeometry/county/>
     PREFIX sdmx-dimension: <http://purl.org/linked-data/sdmx/2009/dimension#>
     PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    PREFIX geo:	<http://www.opengis.net/ont/geosparql#>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
     CONSTRUCT{
+        ?eventRef ?evP ?evO ;
+                  prov:atLocation ?evGeoUri .
+        ?evGeoUri geo:asWKT ?evGeo .
+        ?evI ?evIP ?evIO .
+        
         ?sliceName
             a qb:Slice;
             qb:sliceStructure 			eg:sliceByTime ;
-            eg:refArea 					geohive-county-geo:2ae19629-1454-13a3-e055-000000000001 ;
-            eg:refEvent        			?event ;
+            eg:refArea 					?evGeoUri ;
+            eg:refEvent        			?eventRef ;
             qb:observation   			?obsName ;
             .
     
@@ -267,16 +277,29 @@ def evEnvoDataSet(referer, repo, evEnvoDict, timeUnit, spAgg, username, password
     }
     WHERE {
     ''' + qBodyBlockUnion + '''   
+        # Fix single digits when using SPARQL temporal functions
         BIND( IF( BOUND(?monthT), IF(STRLEN( STR(?monthT) ) = 2, STR(?monthT), CONCAT("0", STR(?monthT)) ), "01") AS ?monthTF )
         BIND( IF( BOUND(?dayT), IF( STRLEN( STR(?dayT) ) = 2, STR(?dayT), CONCAT("0", STR(?dayT)) ), "01" ) AS ?dayTF )
-        BIND( IF( BOUND(?hourT) , STR(?hourT), "00" ) AS ?hourTF )
+        BIND( IF( BOUND(?hourT) , IF( STRLEN( STR(?hourT) ) = 2, STR(?hourT), CONCAT("0", STR(?hourT)) ), "00" ) AS ?hourTF )
+        # Build dateTime values 
         BIND(CONCAT(str(?yearT),"-",?monthTF,"-",?dayTF,"T",?hourTF,":00:00Z") AS ?obsTimePeriod)
-        BIND(IRI(CONCAT("http://example.org/ns#dataset-eea-20211012T120000-IE-", ?event ,"-obs-", str(?yearT),?monthTF,?dayTF,"T",?hourTF,"0000Z")) AS ?obsName)
-        BIND(IRI(CONCAT("http://example.org/ns#dataset-eea-20211012T120000-IE-", ?event ,"-slice")) AS ?sliceName)
-        BIND(IRI(CONCAT("http://example.org/ns#dataset-eea-20211012T120000-IE-QT_", ENCODE_FOR_URI(STR(NOW())))) AS ?datasetName)
-    
+        # Build IRI for the CONSTRUCT
+        BIND(IRI(CONCAT("http://example.org/ns#dataset-ee-20211012T120000-IE-QT_", ENCODE_FOR_URI(STR(NOW())))) AS ?datasetName)
+        BIND(IRI(CONCAT(STR(?datasetName),"-", ?event ,"-obs-", str(?yearT),?monthTF,?dayTF,"T",?hourTF,"0000Z")) AS ?obsName)
+        BIND(IRI(CONCAT(STR(?datasetName),"-", ?event ,"-slice")) AS ?sliceName)
+        
+        # Gather events description
+        SERVICE <repository:repo-serdif-events-ie>{
+            VALUES ?eventRef {''' + ''.join([' <' + ev + '> ' for ev in evEnvoDict.keys()]) + '''}
+            ?eventRef ?evP ?evO ;
+                      prov:wasAssociatedWith	?evI ;
+                      prov:atLocation/geo:asWKT ?evGeo .
+            ?evI ?evIP ?evIO .
+            BIND(IRI(CONCAT(str(?eventRef), "-geo")) AS ?evGeoUri)
+        }
     }
     '''
+    # print(evEnvoDict)
     # 1.2.Query parameters
     rQuery = requests.post(
         referer + repo,
@@ -289,8 +312,8 @@ def evEnvoDataSet(referer, repo, evEnvoDict, timeUnit, spAgg, username, password
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         }
     )
-    qEvEnvo_dict = json.loads(json.dumps(xmltodict.parse(rQuery.content)))
-    return qEvEnvo_dict
+
+    return {'queryContent': rQuery.content, 'queryBody': qBody}  # qEvEnvo_dict
 
 
 if __name__ == '__main__':
@@ -300,4 +323,3 @@ if __name__ == '__main__':
     evTypeLocDateT()
     evEnvoDataAsk()
     evEnvoDataSet()
-
