@@ -34,6 +34,7 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
+import zipfile
 # Functions from queries.py
 from assets.queries import nEvents, evLoc, envoLoc, evTypeLocDateT, evEnvoDataAsk, evEnvoDataSet
 from assets.metadataTemplateGen import genMetadataFile
@@ -301,12 +302,32 @@ tabQuery = dbc.Card([
 ],  # className='mt-3',
 )
 
+# Zip download
+tabDownl = dbc.Card([
+    dbc.CardHeader('Query Datatables', style={'fontWeight': 'bold'}),
+    dbc.CardBody([
+        html.Div([
+            dbc.Button(
+                'Download all datatables',
+                id='qDatatableZip',
+                color='primary',
+                style={'fontWeight': 'normal',
+                       'text-align': 'center',
+                       },
+            ),
+        ], style={'display': 'block', 'margin-bottom': '1em', 'margin-top': '1em'}),
+        html.Div([], id='zipCheck')
+
+    ])
+
+])
+
 # Group elements into input and output tabs
 inputTabs = dbc.Tabs(
     [
         dbc.Tab(loginInput, label='Login', style={'fontWeight': 'bold'}, id='loginTab'),
         dbc.Tab(tabQuery, label='Query', style={'fontWeight': 'bold'}, id='queryTab', disabled=True),
-        # dcc.Tab(tabDownl, label='Zip Download'),
+        dcc.Tab(tabDownl, label='Download All', style={'fontWeight': 'bold'}, id='zipTab', disabled=True),
         # dcc.Tab(tabAbout, label='About')
 
     ], id='inputTabs',  # className='mt-3'
@@ -570,6 +591,7 @@ def clickDataAvailable(nClick, dValType, dValLoc, dValLen, dValLag, dVal_user, d
         for ev in qEvLoc:
             dataEvEnvo[ev['event']['value']] = {
                 'event': ev['event']['value'],
+                'eventType': ev['eventType']['value'],
                 'evDateT': ev['evDateT']['value'],
                 'dateStart': ev['dateStart']['value'],
                 'dateLag': ev['dateLag']['value'],
@@ -785,7 +807,7 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
         # Select query time for metadata
         qtDateTime = [od['qb:observation'] for od in evEnvoData['rdf:RDF']['rdf:Description'] if
                       'qb:observation' in od.keys()][0]['@rdf:resource'].split('QT_')[1].split('-event')[0]
-
+        # Metadata construct query
         qMetadataExp = genMetadataFile(
             queryTimeUrl=str(qtDateTime),
             evEnvoDict=evEnvoDataInfo,
@@ -799,7 +821,8 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
             qText=evEnvoDataRaw['queryBody'],
             eeVars=list(eeVarsCondF),
         )
-
+        # Select only lineage metadata
+        linMetadata = qMetadataExp.split('# -- Data provenance and lineage ---------------------------------------\n\n')[1].split('\n\n# -- Data protection terms ---------------------------------------------')[0]
         ################################################
         ####         Datatable definition           ####
         ################################################
@@ -848,6 +871,15 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                 'rule': 'background-color: #A4DCD1'
             }],
         )
+
+        datatableInfo = dcc.Markdown(
+            '''
+        **Datatable background:**
+        If data is normally distributed 95% should be between -2 and +2 Z-scores (white)
+        * Values > 2 are **high** (red) | Values < -2 are **low** (blue)
+        Z-scores are computed using the mean value form the data available in the data table
+        ''')
+
         # Heatmap to represent the value of an environmental
         # variable for all events over time
         eeHeatmap = [
@@ -897,15 +929,23 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
             ),
         ]
         query_buttons = html.Div([
-            dbc.Button('Metadata exploration', color='primary', className='me-1',
+            dbc.Button('Data Provenance', color='primary', className='me-1',
+                       id={'type': 'provTableButton',
+                           'index': submit_click}
+                       ),
+            dbc.Button('Data Lineage', color='primary', className='me-1',
+                       id={'type': 'dataLinVizButton',
+                           'index': submit_click}
+                       ),
+            dbc.Button('Full Metadata Exploration', color='primary', className='me-1',
                        id={'type': 'metadataVizButton',
                            'index': submit_click}
                        ),
-            dbc.Button('FAIR metadata export', color='primary', className='me-1',
+            dbc.Button('FAIR Metadata Export', color='primary', className='me-1',
                        id={'type': 'fairMetadataExportButton',
                            'index': submit_click}
                        ),
-            dbc.Button('FAIR data export', color='primary', className='me-1',
+            dbc.Button('FAIR Data Export', color='primary', className='me-1',
                        id={'type': 'fairDataExportButton',
                            'index': submit_click}
                        ),
@@ -923,7 +963,29 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                       data=evEnvoDataRaw['queryContent'].decode('utf8'),
                       ),
         ])
-        # Metadata construct query
+
+        # Data Lineage text area
+        dataLinViz = html.Div([
+            # Store FAIR data to be used in the generated query result tabs
+            dbc.Collapse(
+                dbc.Card([
+                    dcc.Textarea(
+                        id={'type': 'dataLinVizText',
+                            'index': submit_click},
+                        value=linMetadata,
+                        style={'width': '100%', 'height': '100%'},
+                        #contentEditable=False,
+                        readOnly=True,
+                    ),
+                ], style={'height': '20em'}),
+                id={'type': 'dataLinVizCol',
+                    'index': submit_click},
+                is_open=False,
+            ),
+        ], style={'marginBottom': '1em', 'display': 'inline-block', 'margin-right': '1em', 'width': '100%',
+                  'height': '100%'})
+
+        # Metadata text area
         metadataExport = html.Div([
 
             dcc.Download(id={'type': 'fairMetadataExportFile',
@@ -945,6 +1007,7 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                             'index': submit_click},
                         value=qMetadataExp,
                         style={'width': '100%', 'height': '100%'},
+                        readOnly=True,
                     ),
                 ], style={'height':'20em'}), #qMetadataExp
                 id={'type': 'metadataVizCol',
@@ -953,6 +1016,53 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
             ),
         ], style={'marginBottom': '1em','display': 'inline-block', 'margin-right': '1em', 'width': '100%', 'height': '100%'})
 
+        # Nested dictionary to dataframe
+        provDF = pd.DataFrame.from_dict(evEnvoDataInfo, orient='index')
+        provDF['event'] = provDF['event'].str.replace('http://example.org/ns#', 'eg:')
+        provDF['caseStudy'] = 'Example Events\nIreland'
+        provDF['envoDS'] = ['\n'.join(e).replace('http://example.org/ns#', 'eg:') for e in provDF['envoDS'].values.tolist()]
+
+        # Rename columns
+        provDF.rename(columns={'LOI_ev': 'county', 'dateLag': 'dateLag', 'dateStart': 'dateStart',
+                               'envoDS': 'dataSetsUsed', 'evDateT': 'eventDate', 'event': 'event',
+                               'eventType':'eventType','caseStudy':'caseStudy'
+                               }, inplace=True)
+
+        # Reorder columns
+        provDF = provDF[['caseStudy','event', 'eventType', 'county', 'eventDate', 'dataSetsUsed']] # 'dateStart', 'dateLag',
+
+
+        provTable = html.Div([
+            # Store FAIR data to be used in the generated query result tabs
+            dbc.Collapse(
+                dbc.Card([
+                    #dbc.Table.from_dataframe(provDF, striped=True, bordered=True,size='sm', responsive='sm',style={'height':'20em'})
+                    dash_table.DataTable(
+                        data=provDF.to_dict('records'),
+                        columns=[{'id': c, 'name': c} for c in provDF.columns],
+                        page_action='none',
+                        style_table={'overflowY': 'auto', 'overflowX': 'auto'},
+                        fixed_rows={'headers': True},
+                        style_header={'fontWeight': 'bold','textAlign': 'center'},
+                        export_format='csv',
+                        export_headers='display',
+                        style_cell={
+                            'whiteSpace': 'pre-line',
+                            'height': 'auto',
+                            'textAlign': 'center'
+                           # 'maxWidth': '20'
+                        },
+                    )
+
+                ]),
+                id={'type': 'provTableCol',
+                    'index': submit_click},
+                is_open=False,
+            ),
+        ], style={'marginBottom': '1em', 'display': 'inline-block',
+                  'margin-right': '1em','width': '100%', 'height': '100%'}
+        )
+
         # https://serdif-example.adaptcentre.ie/graphs-visualizations?query=CONSTRUCT%7B%0A%20%20%20%20%3Fs%20%3Fp%20%3Fo%20.%0A%7D%0Awhere%20%7B%20%0A%09%3Fs%20%3Fp%20%3Fo%20.%0A%7D%20limit%2010%20%0A&sameAs&inference
 
         # New tab per Query
@@ -960,14 +1070,22 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
             dbc.CardHeader('Event-environmental linked data through location & time'),
             dbc.CardBody([
                 html.Div([
+                    dcc.Markdown('''
+                    The buttons below can be clicked to comprehend the event-environmental linked data through data
+                    provenance, lineage, risks, use and limitations; and to export FAIR (meta)data for publishing.
+                    Full Metadata Exploration text area displayed when clicking can be searched with CTRL+F for specific
+                    information (e.g. eg:DataUse, eg:IdentificationRisk, dct:license)
+                    '''),
                     query_buttons,
+                    provTable,
+                    dataLinViz,
                     metadataViz,
                     metadataExport,
                     fairExport,
 
-                ], style={}),
+                ], style={'margin-bottom':'-1em'}),
                 dbc.Tabs([
-                    dcc.Tab([eeDatatable], label='Datatable'),
+                    dcc.Tab([datatableInfo, eeDatatable], label='Datatable'),
                     dcc.Tab(eeHeatmap, label='Heatmap'),
                     dcc.Tab(eeBoxPlot, label='BoxPlot'),
                     dcc.Tab(eePolarPlot, label='PolarPlot'),
@@ -1125,7 +1243,7 @@ def polarPlotVar(dVal_Boxplot, dataQStore, qNumID):
             fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
             cont = ax.tricontourf(np.radians(np.array(wd)), ws, oz, cmap='YlGnBu')  # , cmap='hot')
             plt.colorbar(cont)
-            return [html.Img(id='polarplot' + qNumData, src='')]  # fig_to_uri(fig))]
+            return [html.Img(id='polarplot' + qNumData, src=fig_to_uri(fig))]  # fig_to_uri(fig))]
 
 
 # 12. Download FAIR data
@@ -1171,6 +1289,75 @@ def vizFAIRMetadata(n, is_open):
         return not is_open
     return is_open
 
+# 15. Enable download all tab and Comparative tab after submitting the first query
+@app.callback(
+    [Output('zipTab', 'disabled'),
+     #Output('compTab', 'disabled')
+     ],
+    [Input('qDataS', 'data')],
+)
+def enableDownloadAll(dVal):
+    if not dVal:
+        return [True] #, True]
+    else:
+        return [False] #, False]
+
+
+# 16. Download all data tables (CSV) as a zip file
+@app.callback(
+    Output('zipCheck', 'children'),
+    [Input('qDatatableZip', 'n_clicks')],
+    [State('qDataS', 'data')]
+)
+def allQueryDownload(zip_click, dataQStore):
+    if not zip_click or not dataQStore:
+        raise PreventUpdate
+    else:
+        # Store data as CSV files within a zip file
+        zipDownlLink = 'userDataTables-ee-20211012T120000-IE.zip'
+        with zipfile.ZipFile(zipDownlLink, 'w') as csv_zip:
+            for qNum, qDataTable in dataQStore.items():
+                csv_zip.writestr(qNum + '.csv', pd.DataFrame(qDataTable).to_csv())
+
+        downloadZipAlert = dbc.Alert(
+            children=[html.H5('Data downloaded!', className='alert-heading'),
+                      html.P('Zip file downloaded in local folder.')],
+            dismissable=True,
+            is_open=True,
+            color='success',
+            style={'verticalAlign': 'middle',
+                   'margin-bottom': '0.5em',
+                   'fontWeight': 'normal',
+                   }
+        )
+
+        return [downloadZipAlert]
+
+
+# 17. Display Data Provenance summary
+@app.callback(
+    Output({'type': 'provTableCol', 'index': MATCH}, 'is_open'),
+    Input({'type': 'provTableButton', 'index': MATCH}, 'n_clicks'),
+    State({'type': 'provTableCol', 'index': MATCH}, 'is_open'),
+    # prevent_initial_call=True,
+)
+def vizDataProv(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
+# 18. Display Data Lineage summary
+@app.callback(
+    Output({'type': 'dataLinVizCol', 'index': MATCH}, 'is_open'),
+    Input({'type': 'dataLinVizButton', 'index': MATCH}, 'n_clicks'),
+    State({'type': 'dataLinVizCol', 'index': MATCH}, 'is_open'),
+    # prevent_initial_call=True,
+)
+def vizvizDataLin(n, is_open):
+    if n:
+        return not is_open
+    return is_open
 
 if __name__ == '__main__':
     app.run_server(debug=True, dev_tools_props_check=False,  # dev_tools_ui=False,
