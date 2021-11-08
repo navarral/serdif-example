@@ -11,6 +11,8 @@
 # from pathlib import Path
 # from flask import Flask, send_from_directory
 # Libraries for Dash
+import time
+
 import dash
 import dash_bootstrap_components as dbc
 # import dash_auth
@@ -30,14 +32,13 @@ from pprint import pprint
 from scipy import stats
 # Visualizations
 import plotly.express as px
-import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 import zipfile
 # Functions from queries.py
 from assets.queries import nEvents, evLoc, envoLoc, evTypeLocDateT, evEnvoDataAsk, evEnvoDataSet
 from assets.metadataTemplateGen import genMetadataFile
+from assets.openAirPolarPlot import dfToPolar
 
 
 # from pprint import pprint
@@ -51,24 +52,6 @@ def listToOptions(optDM):
         dictID = {'label': entry, 'value': entry}
         listOpt.append(dictID)
     return listOpt
-
-
-# Function for to display a matplotlib plot as an image
-def fig_to_uri(in_fig, close_all=True, **save_args):
-    # type: (plt.Figure) -> str
-    """
-    Save a figure as a URI
-    :param in_fig:
-    :return:
-    """
-    out_img = BytesIO()
-    in_fig.savefig(out_img, format='png', **save_args)
-    if close_all:
-        in_fig.clf()
-        plt.close('all')
-    out_img.seek(0)  # rewind file
-    encoded = base64.b64encode(out_img.read()).decode("ascii").replace("\n", "")
-    return "data:image/png;base64,{}".format(encoded)
 
 
 # App top navigation bar
@@ -1073,8 +1056,8 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                     dcc.Markdown('''
                     The buttons below can be clicked to comprehend the event-environmental linked data through data
                     provenance, lineage, risks, use and limitations; and to export FAIR (meta)data for publishing.
-                    Full Metadata Exploration text area displayed when clicking can be searched with CTRL+F for specific
-                    information (e.g. eg:DataUse, eg:IdentificationRisk, dct:license)
+                    The text area displayed when clicking the Full Metadata Exploration button can be searched with 
+                    CTRL+F for specific information (e.g. eg:DataUse, eg:IdentificationRisk, dct:license)
                     '''),
                     query_buttons,
                     provTable,
@@ -1208,8 +1191,8 @@ def boxPlotVar(dVal_Boxplot, dataQStore, qNumID):
      Input('qDataS', 'data')],
     [State({'type': 'qPolarplot', 'index': MATCH}, 'id')]
 )
-def polarPlotVar(dVal_Boxplot, dataQStore, qNumID):
-    if not dataQStore or not dVal_Boxplot:
+def polarPlotVar(dVal_Polarplot, dataQStore, qNumID):
+    if not dataQStore or not dVal_Polarplot:
         raise PreventUpdate
     else:
         # Generate query num label
@@ -1233,17 +1216,13 @@ def polarPlotVar(dVal_Boxplot, dataQStore, qNumID):
             ),
             return noWindVarsAlert
         else:
-            envQData = envQData[['Wdsp', 'Wddir', dVal_Boxplot]]
-            envQData = envQData[envQData[dVal_Boxplot].notna()]
-            # print(df_sm)
-            ws = envQData['Wdsp'].values
-            wd = envQData['Wddir'].values
-            oz = envQData[dVal_Boxplot].values
-
-            fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
-            cont = ax.tricontourf(np.radians(np.array(wd)), ws, oz, cmap='YlGnBu')  # , cmap='hot')
-            plt.colorbar(cont)
-            return [html.Img(id='polarplot' + qNumData, src=fig_to_uri(fig))]  # fig_to_uri(fig))]
+            envQData = envQData[['Wdsp', 'Wddir', dVal_Polarplot]]
+            envQData = envQData[envQData[dVal_Polarplot].notna()]
+            dfToPolar(df=envQData, dVal_Polarplot=dVal_Polarplot,
+                      fileName='polarRPY2.png') #os.getcwd() +
+            encoded_image = base64.b64encode(open('polarRPY2.png', 'rb').read()).decode('ascii').replace('\n', '')
+            return [html.Img(id='polarplot' + qNumData,
+                             src='data:image/png;base64,{}'.format(encoded_image))]  # fig_to_uri(fig))]
 
 
 # 12. Download FAIR data
