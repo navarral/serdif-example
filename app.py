@@ -1126,17 +1126,33 @@ def heatmapVar(dVal_Heatmap, dataQStore, qNumID):
         envQData = pd.DataFrame(dataQStore[qNumData])
         # Heatmap plot: https://plotly.com/python/heatmaps/ https://plotly.com/python/box-plots/
         envQData = envQData[['dateT', 'event', dVal_Heatmap]]
+        pd.set_option('display.max_rows', None)
+        #print(envQData)
+        envQData = envQData.groupby('event').filter(lambda x: (x.notna()).all().all())
+        #envQData = envQData[envQData[dVal_Heatmap].notna()]
+
         envQData['dateT'] = pd.to_datetime(envQData['dateT'])
         envQData['rank'] = envQData.groupby('event')['dateT'].rank(ascending=True)
+        # Number of Ranks
+        numRank = envQData['rank'].unique()
+        # Number of events
+        numEvents = envQData['event'].unique()
 
-        envQData_f = [v.tolist() for v in
-                      envQData.set_index(dVal_Heatmap).groupby('event', sort=False, as_index=False).groups.values()]
+        envQData_f = list()
+        for v in envQData.set_index(dVal_Heatmap).groupby('event', sort=False, as_index=False).groups.values():
+            envoValList = v.tolist()
+            if len(numRank) == len(envoValList):
+                envQData_f.append(envoValList)
+            # Add a value to compensate for events with time after 23:00:00
+            else:
+                envoValList.append(np.nan)
+                envQData_f.append(envoValList)
 
         heatmapFig = px.imshow(
             envQData_f,
             labels=dict(x='Relative time from the event', y='', color=dVal_Heatmap),
-            x=envQData['rank'].unique(),
-            y=envQData['event'].unique(),
+            x=numRank,
+            y=numEvents,
             color_continuous_scale='YlGnBu'
         )
         heatmapFig.update_xaxes(autorange='reversed', rangeslider_visible=True, )
