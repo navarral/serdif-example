@@ -316,6 +316,38 @@ def evEnvoDataSet(referer, repo, evEnvoDict, timeUnit, spAgg, username, password
     return {'queryContent': rQuery.content, 'queryBody': qBody}  # qEvEnvo_dict
 
 
+# Function that returns the number of events grouped by type
+def envoVarNameUnit(referer, repo, username, password):
+    qBody = '''
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX owl: <http://www.w3.org/2002/07/owl#>
+    PREFIX qb: <http://purl.org/linked-data/cube#>
+    SELECT ?envoVar ?envoVarName
+    WHERE { 
+        ?envoVar a owl:DatatypeProperty , qb:MeasureProperty ; 
+                 rdfs:comment ?envoVarName.
+    }
+    '''
+
+    # 1.2.Query parameters
+    SPARQLQuery = SPARQLWrapper(referer + repo)
+    SPARQLQuery.setMethod('POST')
+    SPARQLQuery.setQuery(qBody)
+    SPARQLQuery.setReturnFormat('json')
+    SPARQLQuery.setCredentials(user=username, passwd=password)
+
+    # 1.3.Fire query and convert results to json (dictionary)
+    qVarNameUnit_dict = SPARQLQuery.query().convert()
+    # 1.4.Return results
+    jVarNameUnit = qVarNameUnit_dict['results']['bindings']
+    # 1.5.Return results formatted for tooltip_header
+    varAbb = [cc['envoVar']['value'].split('http://example.org/ns#has')[1] for cc in jVarNameUnit]
+    varDesc = [cc['envoVarName']['value'] for cc in jVarNameUnit]
+    tooltipEnvDesc = dict(zip(varAbb, varDesc))
+
+    return tooltipEnvDesc
+
+
 if __name__ == '__main__':
     nEvents()
     evLoc()
@@ -323,3 +355,4 @@ if __name__ == '__main__':
     evTypeLocDateT()
     evEnvoDataAsk()
     evEnvoDataSet()
+    envoVarNameUnit()
