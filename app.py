@@ -488,10 +488,11 @@ def enableEvents(dVal, dVal_user, dVal_psswd):
 @app.callback(
     [Output('wLength', 'disabled'),
      Output('wLag', 'disabled')],
-    [Input('eventLoc', 'value')],
+    [Input('eventLoc', 'disabled'),
+     Input('eventLoc', 'value')],
 )
-def enableTimeWindow(dVal):
-    if not dVal:
+def enableTimeWindow(dValA, dValB):
+    if dValA or not dValB:
         return [True, True]
     else:
         return [False, False]
@@ -501,10 +502,13 @@ def enableTimeWindow(dVal):
 @app.callback(
     [Output('evEnvoDataButton', 'disabled')],
     [Input('wLength', 'value'),
-     Input('wLag', 'value')],
+     Input('wLag', 'value'),
+     Input('wLength', 'disabled'),
+     Input('wLag', 'disabled')
+     ],
 )
-def enableDataCheckButton(dValA, dValB):
-    if not dValA or str(dValB) == 'None':
+def enableDataCheckButton(dValA, dValB, dValA_dis, dValB_dis):
+    if not dValA or str(dValB) == 'None' or dValA_dis or dValB_dis:
         return [True]
     else:
         return [False]
@@ -594,10 +598,25 @@ def clickDataAvailable(nClick, dValType, dValLoc, dValLen, dValLag, dVal_user, d
 @app.callback(
     [Output('timeUnit', 'labelStyle'),
      Output('spAgg', 'labelStyle')],
-    [Input('evEnvoDataText', 'color')]
+    [Input('evEnvoDataText', 'color'),
+     Input('projectID', 'value'),
+     Input('eventTypeCount', 'value'),
+     Input('eventLoc', 'value'),
+     Input('wLength', 'value'),
+     Input('wLag', 'value'),
+     ]
 )
-def selTimeUnitAggMethod(dVal):
-    if dVal != 'success':
+def selTimeUnitAggMethod(dVal_color, dValProject, dValType, dValLoc, dValLen, dValLag):
+    # use the dash.callback_context property to trigger the callback only when
+    # the number of clicks has changed rather than after the first click
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+
+    if 'evEnvoDataButton' not in changed_id and \
+            ('dValProject' in changed_id or 'eventTypeCount' in changed_id or 'eventLoc' in changed_id or
+             'wLength' in changed_id or 'wLag' in changed_id):
+        return [{'display': 'none', 'margin-right': '20px'},
+                {'display': 'none', 'margin-right': '20px'}]
+    if dVal_color != 'success':
         return [{'display': 'none', 'margin-right': '20px'},
                 {'display': 'none', 'margin-right': '20px'}]
     else:
@@ -615,14 +634,16 @@ def selTimeUnitAggMethod(dVal):
      Input('wLag', 'value'),
      Input('timeUnit', 'value'),
      Input('spAgg', 'value'),
-     Input('evEnvoDateLocDataSet', 'data')],
+     Input('evEnvoDateLocDataSet', 'data'),
+     Input('timeUnit', 'labelStyle')],
     [State('userInput', 'value'),
      State('passwordInput', 'value')],
 )
 def enableSubmitButton(dVal_ProjectID, dVal_evType, dVal_evLoc, dVal_wLen, dVal_wLag,
-                       dVal_tUnit, dVal_spAgg, evEnvoDataInfo, dVal_user, dVal_psswd):
+                       dVal_tUnit, dVal_spAgg, evEnvoDataInfo, labelStyle, dVal_user, dVal_psswd,):
+
     if not dVal_ProjectID or not dVal_evType or not dVal_evLoc or not str(dVal_wLen) or \
-            not str(dVal_wLag) or not dVal_tUnit or not dVal_spAgg:
+            not str(dVal_wLag) or not dVal_tUnit or not dVal_spAgg or labelStyle['display'] == 'none':
         return [True]
 
     else:
@@ -855,13 +876,13 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
             }],
         )
 
-        datatableInfo = dcc.Markdown(
+        datatableInfo = html.Div([dcc.Markdown(
             '''
         **Datatable background:**
         If data is normally distributed 95% should be between -2 and +2 Z-scores (white)
         * Values > 2 are **high** (red) | Values < -2 are **low** (blue)
         Z-scores are computed using the mean value form the data available in the data table
-        ''')
+        ''')],style={'margin-top': '0.5em'})
 
         # Heatmap to represent the value of an environmental
         # variable for all events over time
@@ -933,7 +954,7 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                            'index': submit_click}
                        ),
 
-        ], style={'marginBottom': '1em','display': 'inline-block', 'margin-right': '1em'})
+        ], style={'marginBottom': '0.5em','display': 'inline-block', 'margin-right': '0.5em'})
 
         # FAIR data export
         fairExport = html.Div([
@@ -965,7 +986,7 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                     'index': submit_click},
                 is_open=False,
             ),
-        ], style={'marginBottom': '1em', 'display': 'inline-block', 'margin-right': '1em', 'width': '100%',
+        ], style={'marginBottom': '0.5em', 'display': 'inline-block', 'margin-right': '0.5em', 'width': '100%',
                   'height': '100%'})
 
         # Metadata text area
@@ -997,7 +1018,7 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                     'index': submit_click},
                 is_open=False,
             ),
-        ], style={'marginBottom': '1em','display': 'inline-block', 'margin-right': '1em', 'width': '100%', 'height': '100%'})
+        ], style={'marginBottom': '0.5em','display': 'inline-block', 'margin-right': '0.5em', 'width': '100%', 'height': '100%'})
 
         # Nested dictionary to dataframe
         provDF = pd.DataFrame.from_dict(evEnvoDataInfo, orient='index')
@@ -1042,8 +1063,8 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
                     'index': submit_click},
                 is_open=False,
             ),
-        ], style={'marginBottom': '1em', 'display': 'inline-block',
-                  'margin-right': '1em','width': '100%', 'height': '100%'}
+        ], style={'marginBottom': '0.5em', 'display': 'inline-block',
+                  'margin-right': '0.5em', 'width': '100%', 'height': '100%'}
         )
 
         # https://serdif-example.adaptcentre.ie/graphs-visualizations?query=CONSTRUCT%7B%0A%20%20%20%20%3Fs%20%3Fp%20%3Fo%20.%0A%7D%0Awhere%20%7B%20%0A%09%3Fs%20%3Fp%20%3Fo%20.%0A%7D%20limit%2010%20%0A&sameAs&inference
@@ -1126,27 +1147,15 @@ def heatmapVar(dVal_Heatmap, dataQStore, qNumID):
         envQData = pd.DataFrame(dataQStore[qNumData])
         # Heatmap plot: https://plotly.com/python/heatmaps/ https://plotly.com/python/box-plots/
         envQData = envQData[['dateT', 'event', dVal_Heatmap]]
-        pd.set_option('display.max_rows', None)
-        #print(envQData)
-        envQData = envQData.groupby('event').filter(lambda x: (x.notna()).all().all())
-        #envQData = envQData[envQData[dVal_Heatmap].notna()]
-
+        # Drop events full of NaN for the selected variable
+        envQData = envQData.loc[envQData.groupby('event')[dVal_Heatmap].filter(lambda x: len(x[pd.isnull(x)]) != len(x)).index]
         envQData['dateT'] = pd.to_datetime(envQData['dateT'])
         envQData['rank'] = envQData.groupby('event')['dateT'].rank(ascending=True)
         # Number of Ranks
         numRank = envQData['rank'].unique()
         # Number of events
         numEvents = envQData['event'].unique()
-
-        envQData_f = list()
-        for v in envQData.set_index(dVal_Heatmap).groupby('event', sort=False, as_index=False).groups.values():
-            envoValList = v.tolist()
-            if len(numRank) == len(envoValList):
-                envQData_f.append(envoValList)
-            # Add a value to compensate for events with time after 23:00:00
-            else:
-                envoValList.append(np.nan)
-                envQData_f.append(envoValList)
+        envQData_f = [v.tolist() for v in envQData.set_index(dVal_Heatmap).groupby('event', sort=False, as_index=False).groups.values()]
 
         heatmapFig = px.imshow(
             envQData_f,
