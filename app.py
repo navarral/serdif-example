@@ -36,7 +36,7 @@ from io import BytesIO
 import base64
 import zipfile
 # Functions from queries.py
-from assets.queries import nEvents, evLoc, envoLoc, evTypeLocDateT, evEnvoDataAsk, evEnvoDataSet
+from assets.queries import nEvents, evLoc, envoLoc, evTypeLocDateT, evEnvoDataAsk, evEnvoDataSet, envoVarNameUnit
 from assets.metadataTemplateGen import genMetadataFile
 from assets.openAirPolarPlot import dfToPolar
 
@@ -834,7 +834,12 @@ def submitQueryEvEnvo(submit_click, dVal_tUnit, dVal_spAgg, evEnvoDataInfo,
         # Data table to show:
         df_ee_colNames = [{"name": i, "id": i, "hideable": True} for i in df_ee_r.columns]
         # Variable description
-        df_ee_desc = {}  # serdif_EnvDesc(endpointURL=localHost, repoID=serdifRepoID)
+        df_ee_desc = envoVarNameUnit(
+            referer='https://serdif-example.adaptcentre.ie/repositories/',
+            repo='repo-serdif-envo-ie',
+            username=dVal_user,
+            password=dVal_psswd
+        )
         df_ee_desc['event'] = 'Events'
         # Data table dash definition
         eeDatatable = dash_table.DataTable(
@@ -1364,5 +1369,5 @@ def vizvizDataLin(n, is_open):
     return is_open
 
 if __name__ == '__main__':
-    app.run_server(debug=True, dev_tools_props_check=False,  # dev_tools_ui=False,
+    app.run_server(debug=False, dev_tools_props_check=False,  #dev_tools_ui=False,
                    host='0.0.0.0', port=5000)
