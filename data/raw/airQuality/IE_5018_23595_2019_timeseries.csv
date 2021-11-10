@@ -1,2 +1,0 @@
-Countrycode,Namespace,AirQualityNetwork,AirQualityStation,AirQualityStationEoICode,SamplingPoint,SamplingProcess,Sample,AirPollutant,AirPollutantCode,AveragingTime,Concentration,UnitOfMeasurement,DatetimeBegin,DatetimeEnd,Validity,Verification
-IE,http://erc.epa.ie/airquality/ipr,NET.IE001,STA.IE.IE0028A,IE0028A,SPO.IE.IE0028ASample2_5018,SPP.IE.IE0028ASample2_5018,SAM.IE.IE0028ASAMPLE2,As in PM10,http://dd.eionet.europa.eu/vocabulary/aq/pollutant/5018,var,0.9300000000,ng/m3,2019-01-01 01:00:00 +01:00,2020-01-01 00:59:59 +01:00,1,1
