@@ -40,9 +40,8 @@ from assets.queries import nEvents, evLoc, envoLoc, evTypeLocDateT, evEnvoDataAs
 from assets.metadataTemplateGen import genMetadataFile
 from assets.openAirPolarPlot import dfToPolar
 
-
-# from pprint import pprint
-# import dash_cytoscape as cyto
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])  # , server=server)
+app.title = 'SERDIF'
 
 
 # Function to convert a list to dash input options
@@ -52,6 +51,7 @@ def listToOptions(optDM):
         dictID = {'label': entry, 'value': entry}
         listOpt.append(dictID)
     return listOpt
+
 
 
 # App top navigation bar
@@ -346,7 +346,7 @@ homeTab = dcc.Tab(dbc.Card([
         ]),
         dbc.Row([
             dbc.CardImg(
-                src='assets/SERDIF_GraphicalAbstractB.png',
+                src=app.get_asset_url('SERDIF_GraphicalAbstract.png'),
                 # className='center-block', # className='img-fluid rounded-start',
                 style={'height': '80%', 'width': '80%', 'margin-bottom': '1em'},
             ),
@@ -356,7 +356,7 @@ homeTab = dcc.Tab(dbc.Card([
         dbc.Row([
             dbc.Col([
                 dbc.CardImg(
-                    src='assets/researchLogoCombo.svg',
+                    src=app.get_asset_url('researchLogoCombo.svg'),
                     className='img-fluid rounded-start',
                 ), ], md=6),
             dbc.Col([dcc.Markdown('''
@@ -385,8 +385,6 @@ appBody = dbc.Container([
 ], className='mt-8', fluid=True,
 )
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])  # , server=server)
-app.title = 'SERDIF'
 app.layout = html.Div([topNavbarHelical, appBody])
 
 
