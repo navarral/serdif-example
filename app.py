@@ -41,6 +41,7 @@ from assets.metadataTemplateGen import genMetadataFile
 from assets.openAirPolarPlot import dfToPolar
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])  # , server=server)
+server = app.server
 app.title = 'SERDIF'
 
 
