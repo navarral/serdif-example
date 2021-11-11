@@ -385,7 +385,7 @@ appBody = dbc.Container([
 ], className='mt-8', fluid=True,
 )
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder=resource_path('assets'))  # , server=server)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])  # , server=server)
 app.title = 'SERDIF'
 app.layout = html.Div([topNavbarHelical, appBody])
 
