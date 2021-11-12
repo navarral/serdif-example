@@ -1350,7 +1350,7 @@ def enableDownloadAll(dVal):
 
 # 16. Download all data tables (CSV) as a zip file
 @app.callback(
-    [Output('download-dataframe-zip', 'data')],
+    [Output('download-datatable-zip', 'data')],
     [Input('qDatatableZip', 'n_clicks')],
     [State('qDataS', 'data')]
 )
@@ -1360,29 +1360,11 @@ def allQueryDownload(zip_click, dataQStore):
     else:
         # Store data as CSV files within a zip file
         zipDownlLink = 'userDataTables-ee-20211012T120000-IE.zip'
-        
-        zip_dict = {}
-        # add dataframes to zip file using temporary files
-        for name, qDataTable in dataQStore.items():
-            df_temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
-            df = pd.DataFrame(qDataTable)
-            df.to_csv(df_temp_file.name)
-            df_temp_file.flush()
-            zip_dict[name] = df_temp_file.name
+        with zipfile.ZipFile(zipDownlLink, 'w') as csv_zip:
+            for qNum, qDataTable in dataQStore.items():		
+                csv_zip.writestr(qNum + '.csv', pd.DataFrame(qDataTable).to_csv())
 
-        zip_tf = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
-        zf = zipfile.ZipFile(zip_tf, mode='w', compression=zipfile.ZIP_DEFLATED)
-        for name,fn in zip_dict.items():
-            zf.write(fn,f"{name}.csv") 
-
-        # close uploaded temporary files
-        zf.close()
-        zip_tf.flush()
-        zip_tf.seek(0)
-        [close_tmp_file(_tf) for _tf in zip_dict]
-        close_tmp_file(zip_tf)
-
-        return [dcc.send_file(zip_tf.name,filename=zipDownlLink)]
+        return [dcc.send_file(zipDownlLink,filename='userDataTables-ee-20211012T120000-IE.zip')]
 
 
 # 17. Display Data Provenance summary
