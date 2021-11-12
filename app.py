@@ -34,6 +34,7 @@ import plotly.express as px
 from io import BytesIO
 import base64
 import zipfile
+import tempfile
 # Functions from queries.py
 from assets.queries import nEvents, evLoc, envoLoc, evTypeLocDateT, evEnvoDataAsk, evEnvoDataSet, envoVarNameUnit
 from assets.metadataTemplateGen import genMetadataFile
@@ -52,6 +53,13 @@ def listToOptions(optDM):
         listOpt.append(dictID)
     return listOpt
 
+# helper function for closing temporary files
+def close_tmp_file(tf):
+    try:
+        os.unlink(tf.name)
+        tf.close()
+    except:
+        pass
 
 
 # App top navigation bar
@@ -298,6 +306,7 @@ tabDownl = dbc.Card([
                        'text-align': 'center',
                        },
             ),
+            dcc.Download(id='download-datatable-zip'),
         ], style={'display': 'block', 'margin-bottom': '1em', 'margin-top': '1em'}),
         html.Div([], id='zipCheck')
 
@@ -1328,9 +1337,8 @@ def vizFAIRMetadata(n, is_open):
 
 # 15. Enable download all tab and Comparative tab after submitting the first query
 @app.callback(
-    [Output('zipTab', 'disabled'),
+    Output('zipTab', 'disabled'),
      #Output('compTab', 'disabled')
-     ],
     [Input('qDataS', 'data')],
 )
 def enableDownloadAll(dVal):
@@ -1342,7 +1350,7 @@ def enableDownloadAll(dVal):
 
 # 16. Download all data tables (CSV) as a zip file
 @app.callback(
-    Output('zipCheck', 'children'),
+    Output('download-dataframe-zip', 'data'),
     [Input('qDatatableZip', 'n_clicks')],
     [State('qDataS', 'data')]
 )
@@ -1355,20 +1363,29 @@ def allQueryDownload(zip_click, dataQStore):
         with zipfile.ZipFile(zipDownlLink, 'w') as csv_zip:
             for qNum, qDataTable in dataQStore.items():
                 csv_zip.writestr(qNum + '.csv', pd.DataFrame(qDataTable).to_csv())
+        
+        zip_dict = {}
+        # add dataframes to zip file using temporary files
+        for qNum, qDataTable in dataQStore.items():
+            df_temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
+            df = pd.DataFrame(qDataTable)
+            df.to_csv(df_temp_file.qNum)
+            df_temp_file.flush()
+            zip_dict[qNum] = df_temp_file.qNum
 
-        downloadZipAlert = dbc.Alert(
-            children=[html.H5('Data downloaded!', className='alert-heading'),
-                      html.P('Zip file downloaded in local folder.')],
-            dismissable=True,
-            is_open=True,
-            color='success',
-            style={'verticalAlign': 'middle',
-                   'margin-bottom': '0.5em',
-                   'fontWeight': 'normal',
-                   }
-        )
+        zip_tf = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+        zf = zipfile.ZipFile(zip_tf, mode='w', compression=zipfile.ZIP_DEFLATED)
+        for qNum,fn in zip_dict.items():
+            zf.write(fn,f"{qNum}.csv") 
 
-        return [downloadZipAlert]
+        # close uploaded temporary files
+        zf.close()
+        zip_tf.flush()
+        zip_tf.seek(0)
+        [close_tmp_file(_tf) for _tf in zip_dict]
+        close_tmp_file(zip_tf)
+
+        return dcc.send_file(zip_tf.qNum,filename=zipDownlLink)
 
 
 # 17. Display Data Provenance summary
