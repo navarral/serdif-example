@@ -1183,13 +1183,13 @@ def heatmapVar(dVal_Heatmap, dataQStore, qNumID, dVal_user, dVal_psswd):
 
         heatmapFig = px.imshow(
             envQData_f,
-            labels=dict(x='Relative time from the event' + timeUnitLabel, y='', color=dVal_Heatmap),
+            labels=dict(x='Relative time from the event ' + timeUnitLabel, y='', color=dVal_Heatmap),
             x=-numRank,
             y=numEvents,
             color_continuous_scale='YlGnBu',
             title=df_ee_desc[dVal_Heatmap],
         )
-        heatmapFig.update_xaxes(autorange='reversed', rangeslider_visible=True, )
+        heatmapFig.update_xaxes(rangeslider_visible=True, ) #autorange='reversed', 
         heatmapFig.update_layout(
             yaxis_nticks=len(envQData['event'].unique()),
             font=dict(size=16),
