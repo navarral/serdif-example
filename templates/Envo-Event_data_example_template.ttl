@@ -150,7 +150,7 @@ eg:dataset-ee-20211012T120000-QT-{{data.queryTime}}-temporal
 
 # -- Data provenance and lineage ---------------------------------------
 
-eg:agg-dataset-ee-20211012T120000-QT-{{data.queryTime}
+eg:agg-dataset-ee-20211012T120000-QT-{{data.queryTime}}
 	# -- Type of activity ----------------------------------------------
 	a 						prov:Activity, prvt:DataCreation ;
 	# -- External data sets used in the activity -----------------------
@@ -159,8 +159,8 @@ eg:agg-dataset-ee-20211012T120000-QT-{{data.queryTime}
 	prov:wasAssociatedWith 	<https://orcid.org/0000-0002-2336-753X>  ;
 	# -- Activity explanation for humans -------------------------------
 	rdfs:comment 			"The activity describes a SPARQL query to associate environmental data to particular health events by reasoning over location and time. The GeoSPARQL function geof:sfWithin is used to select environmental data within the region of each event, and xsd:duration to filter a specific time window prior to the event. Region = County {{data.countyName}} | Time window with a duration of {{data.wLen}} DAYS lagged {{data.wLag}} DAYS from the event"@en ;
-    # -- Query to construct the data set -------------------------------
-    prvt:usedGuideline [ 	a prvt:CreationGuideline, prvt:SPARQLquery, sp:Construct ;
+	# -- Query to construct the data set -------------------------------
+	prvt:usedGuideline [ 	a prvt:CreationGuideline, prvt:SPARQLquery, sp:Construct ;
 							sp:text """ 
 							{{data.queryText}}
 							"""           
