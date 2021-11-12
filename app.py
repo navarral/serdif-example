@@ -28,8 +28,7 @@ from textwrap import dedent
 import sys
 import os
 import copy
-from pprint import pprint
-from scipy import stats
+
 # Visualizations
 import plotly.express as px
 from io import BytesIO
@@ -115,7 +114,7 @@ tabQuery = dbc.Card([
         html.Label('Case study:', style={'fontWeight': 'bold', 'marginBottom': '0.5em'}),
         dcc.Dropdown(
             id='projectID',
-            options=listToOptions(['Example Events - Ireland', 'ANCA Vasculitis - Ireland']),
+            options=listToOptions(['Example Events - Ireland']),
             style={'marginBottom': '0.5em', 'fontWeight': 'normal'}
         ),
         html.Div([
@@ -1139,9 +1138,12 @@ def queryDataStore(submit_click, dataTableQ, dataQStore):
     [Output({'type': 'pHeatmap', 'index': MATCH}, 'children')],
     [Input({'type': 'qHeatmap', 'index': MATCH}, 'value'),
      Input('qDataS', 'data')],
-    [State({'type': 'qHeatmap', 'index': MATCH}, 'id')]
+    [State({'type': 'qHeatmap', 'index': MATCH}, 'id'),
+     State('userInput', 'value'),
+     State('passwordInput', 'value'),
+     ]
 )
-def heatmapVar(dVal_Heatmap, dataQStore, qNumID):
+def heatmapVar(dVal_Heatmap, dataQStore, qNumID, dVal_user, dVal_psswd):
     if not dataQStore or not dVal_Heatmap:
         raise PreventUpdate
     else:
@@ -1155,6 +1157,24 @@ def heatmapVar(dVal_Heatmap, dataQStore, qNumID):
         envQData = envQData.loc[envQData.groupby('event')[dVal_Heatmap].filter(lambda x: len(x[pd.isnull(x)]) != len(x)).index]
         envQData['dateT'] = pd.to_datetime(envQData['dateT'])
         envQData['rank'] = envQData.groupby('event')['dateT'].rank(ascending=True)
+        # Temporal units
+        dateDiff = envQData['dateT'][0] - envQData['dateT'][1]
+        timeUnitsNum = float(str(dateDiff).split(' days')[0][1:])
+        if timeUnitsNum < 1:
+            timeUnitLabel = '[HOUR]'
+        elif timeUnitsNum == 1:
+            timeUnitLabel = '[DAY]'
+        elif 1 < timeUnitsNum < 30:
+            timeUnitLabel = '[MONTH]'
+        else:
+            timeUnitLabel = '[YEAR]'
+        # Variable full name and units
+        df_ee_desc = envoVarNameUnit(
+            referer='https://serdif-example.adaptcentre.ie/repositories/',
+            repo='repo-serdif-envo-ie',
+            username=dVal_user,
+            password=dVal_psswd
+        )
         # Number of Ranks
         numRank = envQData['rank'].unique()
         # Number of events
@@ -1163,10 +1183,11 @@ def heatmapVar(dVal_Heatmap, dataQStore, qNumID):
 
         heatmapFig = px.imshow(
             envQData_f,
-            labels=dict(x='Relative time from the event', y='', color=dVal_Heatmap),
-            x=numRank,
+            labels=dict(x='Relative time from the event' + timeUnitLabel, y='', color=dVal_Heatmap),
+            x=-numRank,
             y=numEvents,
-            color_continuous_scale='YlGnBu'
+            color_continuous_scale='YlGnBu',
+            title=df_ee_desc[dVal_Heatmap],
         )
         heatmapFig.update_xaxes(autorange='reversed', rangeslider_visible=True, )
         heatmapFig.update_layout(
@@ -1182,9 +1203,11 @@ def heatmapVar(dVal_Heatmap, dataQStore, qNumID):
     [Output({'type': 'pBoxplot', 'index': MATCH}, 'children')],
     [Input({'type': 'qBoxplot', 'index': MATCH}, 'value'),
      Input('qDataS', 'data')],
-    [State({'type': 'qBoxplot', 'index': MATCH}, 'id')]
+    [State({'type': 'qBoxplot', 'index': MATCH}, 'id'),
+     State('userInput', 'value'),
+     State('passwordInput', 'value')]
 )
-def boxPlotVar(dVal_Boxplot, dataQStore, qNumID):
+def boxPlotVar(dVal_Boxplot, dataQStore, qNumID, dVal_user, dVal_psswd):
     if not dataQStore or not dVal_Boxplot:
         raise PreventUpdate
     else:
@@ -1196,7 +1219,13 @@ def boxPlotVar(dVal_Boxplot, dataQStore, qNumID):
         envQData = envQData[['dateT', 'event', dVal_Boxplot]]
         envQData['dateT'] = pd.to_datetime(envQData['dateT'])
         envQData['rank'] = envQData.groupby('event')['dateT'].rank(ascending=True)
-
+        # Variable full name and units
+        df_ee_desc = envoVarNameUnit(
+            referer='https://serdif-example.adaptcentre.ie/repositories/',
+            repo='repo-serdif-envo-ie',
+            username=dVal_user,
+            password=dVal_psswd
+        )
         boxplotFig = px.box(x=envQData[dVal_Boxplot], y=envQData['event'], points="all",
                             category_orders=envQData.columns)
         boxplotFig.update_traces(
@@ -1205,7 +1234,7 @@ def boxPlotVar(dVal_Boxplot, dataQStore, qNumID):
             selector=dict(type='box'),
             orientation='h')
         boxplotFig.update_layout(
-            xaxis_title=dVal_Boxplot,
+            xaxis_title= df_ee_desc[dVal_Boxplot],
             yaxis_title='',
             font=dict(size=16)
         )
