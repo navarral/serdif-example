@@ -1337,7 +1337,7 @@ def vizFAIRMetadata(n, is_open):
 
 # 15. Enable download all tab and Comparative tab after submitting the first query
 @app.callback(
-    Output('zipTab', 'disabled'),
+    [Output('zipTab', 'disabled')],
      #Output('compTab', 'disabled')
     [Input('qDataS', 'data')],
 )
