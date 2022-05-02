@@ -87,10 +87,10 @@ loginInput = dbc.Card([
     dbc.CardBody([
         html.Label('Username:', style={'fontWeight': 'bold', 'marginBottom': '0.5em'}),
         dbc.Input(id='userInput', placeholder='Type username...', type='text',
-                  persistence_type='session', required='required',
+                  persistence_type='session', required='required', value='hdr001', disabled=True,
                   style={'fontWeight': 'normal', 'marginBottom': '0.5em'}),
         html.Label('Password:', style={'fontWeight': 'bold', 'marginBottom': '0.5em'}),
-        dbc.Input(id='passwordInput', placeholder='Type password...', type='text',
+        dbc.Input(id='passwordInput', placeholder='Type password...', type='text', value='hdr001?', disabled=True,
                   persistence_type='session', required='required', debounce=True,  # n_blur=100,
                   style={'fontWeight': 'normal', 'marginBottom': '0.5em'}),
         html.Div([
